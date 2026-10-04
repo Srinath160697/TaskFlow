@@ -1,56 +1,88 @@
-# Welcome to your Expo app 👋
+# TaskFlow
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A local-first task manager built with Expo and React Native (plain JavaScript, no backend). Tasks are stored on-device with AsyncStorage; the app also supports bulk-importing tasks from a CSV file.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Run
 
-### Other setup steps
+```bash
+npx expo start
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+From the Metro output you can open the app in:
+- an iOS Simulator (`i`) or Android Emulator (`a`)
+- [Expo Go](https://expo.dev/go) on a physical device (scan the QR code)
+- a web browser (`w`) — date picker and file-upload support are more limited there
 
-## Learn more
+> The date picker and document picker use native modules, so for the full experience use a development build, a simulator/emulator, or Expo Go rather than the web target.
 
-To learn more about developing your project with Expo, look at the following resources:
+### Run the unit tests
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm test
+```
 
-## Join the community
+This runs Jest against the domain layer only (pure functions — no UI, no AsyncStorage, no native modules), so it runs in plain Node with no simulator needed.
 
-Join our community of developers creating universal apps.
+## Architecture
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Feature-based, with three layers per feature and a strict dependency direction: **presentation → domain → data**. The UI never touches AsyncStorage (or any other I/O) directly.
+
+```
+src/
+  app/            App.js — composes providers (SafeArea, Theme, Tasks, Navigation) and is the Expo entry point
+  navigation/      RootNavigator (native-stack), TabNavigator (bottom-tabs), route name constants
+  core/
+    components/    Reusable, theme-aware UI: Button, Input, Card, Chip, Checkbox, SegmentedTabs,
+                    EmptyState, LoadingView, ErrorView, FAB, ConfirmDialog, DatePickerField, SelectField
+    theme/         Light/dark color palettes, spacing, typography, ThemeProvider (persists the mode)
+    utils/         Date helpers (ISO parsing/formatting), id generator, file-size formatter, shared constants
+    storage/       The ONLY module that imports AsyncStorage directly (thin get/set/remove-JSON wrapper)
+    hooks/         Cross-feature hooks (e.g. useDebouncedValue)
+  features/
+    tasks/
+      presentation/  screens (List, Details, Add/Edit), components, hooks (TasksContext, useTaskForm, useTaskListFilters)
+      domain/        task.entity, validateTask, filterTasks, sortTasks, taskUseCases, taskRepository.interface
+      data/          taskRepository.asyncstorage (implements the interface), taskKeys
+    dashboard/
+      presentation/  DashboardScreen, StatCard, useDashboard
+      domain/        getDashboardStats
+    bulk-upload/
+      presentation/  BulkUploadScreen, ImportSummaryCard, ErrorList, useBulkUpload
+      domain/        csvRowMapper, validateCsvRows, detectDuplicates, bulkImportUseCase (orchestrator)
+      data/          fileReader (document picker + file read), csvParser (papaparse wrapper)
+    settings/
+      presentation/  SettingsScreen (theme toggle + clear-all-tasks; reuses the tasks feature's own use-case)
+  __tests__/        Jest specs for the domain layer, mirroring the features/ tree
+```
+
+**How the layers connect:** domain modules never import AsyncStorage or any data-layer module. Instead, mutating use-cases (`createTask`, `updateTask`, `deleteTask`, `runBulkImport`, …) take a repository as their first argument and call its methods. The presentation layer is the composition root: `TasksContext` (in `features/tasks/presentation/hooks`) is the single source of truth for the task list app-wide — it imports the concrete `taskRepository` (AsyncStorage-backed) and the domain use-cases, and wires them together. Every screen reads/mutates tasks through `useTasksContext()`, never through AsyncStorage or the repository directly. The Bulk Upload feature follows the same pattern: `useBulkUpload` reads the file (data layer), parses it (data layer), then hands the parsed `{ headers, rows }` to the domain's `runBulkImport`, which validates, de-duplicates, and persists via the same injected repository.
+
+**State management:** React Context (`TasksProvider`, `ThemeProvider`) + custom hooks, as specified — no Redux/Zustand. This was enough for an app of this size with a single local data source.
+
+## Assumptions
+
+- **No backend, no auth.** Everything lives in AsyncStorage on the device; "Clear all tasks" is irreversible.
+- **CSV columns** are expected exactly as: `id, title, description, category, priority, start_date, due_date, status` (case-insensitive headers). Extra columns are reported but don't block the import; any *missing* required column fails the whole file before any rows are processed.
+- **IDs in the CSV are caller-supplied** (not generated by the app) so re-uploading the same file, or a file that overlaps with previously-imported data, can be deduplicated by `id`. Tasks created in-app get an app-generated id.
+- **Duplicate rules:** a row is skipped if its `id` already exists in storage or earlier in the same file, *or* if its `(title, start_date, due_date)` triple matches an existing task or an earlier row (title match is case-insensitive). The **first** occurrence wins; later matches are reported as duplicates, not silently merged.
+- **Dates** are stored and compared as plain `YYYY-MM-DD` strings (no time/timezone component), which is also what the CSV must contain. "Today" for the dashboard's stat card is the device's local calendar day.
+- **Priority/status normalization** is case-insensitive and capitalizes the first letter (`"HIGH"`/`"high"` → `"High"`); anything that doesn't resolve to `Low/Medium/High` or `Pending/Completed` is treated as invalid rather than guessed at.
+- **Theme** defaults to the OS setting until the user explicitly picks Light or Dark in Settings; that choice persists across restarts.
+
+## Testing bulk upload
+
+`sample-data/tasks.csv` (50 rows, all valid and unique) is **bundled into the app itself** via Metro (see `metro.config.js`, which registers `.csv` as an asset extension) — no native file picker or device file is needed to try the feature:
+
+1. Open the app, go to **Home → Bulk upload** (or the Bulk Upload stack screen).
+2. Tap **Use sample CSV** (the primary button) — this loads `sample-data/tasks.csv` straight from the app bundle and shows it as the selected file.
+3. Tap **Import** — expect **50 total rows → 50 imported, 0 invalid, 0 duplicates skipped**.
+
+**Picking a file from your device** still works exactly as before — tap **Pick from device** instead of **Use sample CSV** to open the native document picker and choose any `.csv` from your phone/simulator. Note the dates in that file must be `YYYY-MM-DD` (the app's one stored/compared date format, see Assumptions above) — the bundled sample already uses that format.
+
+To exercise the invalid-row and duplicate-detection UI specifically, edit a copy of `sample-data/tasks.csv` to introduce e.g. a missing title, an out-of-range priority, a `due_date` before `start_date`, or a repeated `id`/title+dates combo, then import it via **Pick from device** — each problem is reported individually with its row number and reason, and only clean, non-duplicate rows get written to storage.

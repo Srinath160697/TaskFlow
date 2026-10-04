@@ -16,18 +16,19 @@ Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
 npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
 npx expo start              # start the dev server
 npx expo lint               # lint
-npx tsc --noEmit            # typecheck
+npm test                    # run Jest unit tests (domain layer)
 npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run lint and typecheck before declaring any task done.
+This project is plain JavaScript (no TypeScript) — there is no `tsc` step. Run lint and the test suite before declaring any task done.
 
 ## Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- This project intentionally uses **React Navigation** (`@react-navigation/native-stack` + `@react-navigation/bottom-tabs`), not Expo Router. `src/app/App.js` is the sole entry point (registers the root component); navigators live in `src/navigation/` (`RootNavigator.js`, `TabNavigator.js`, `routes.js` for route-name constants and param-shape JSDoc).
+- Screens live under each feature's `presentation/screens/` — not under `src/app/`.
+- Use `useNavigation()` / `useRoute()` from `@react-navigation/native`, and the `ROUTES` constants from `src/navigation/routes.js`, instead of magic route-name strings.
+- Docs: https://reactnavigation.org/docs/getting-started
 
 ## Building with EAS
 
