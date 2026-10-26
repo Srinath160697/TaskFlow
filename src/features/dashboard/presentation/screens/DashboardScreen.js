@@ -1,16 +1,23 @@
-import { View, Text, Pressable, ScrollView, RefreshControl, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../../core/theme/ThemeProvider';
-import { Card } from '../../../../core/components/Card';
-import { FAB } from '../../../../core/components/FAB';
-import { LoadingView } from '../../../../core/components/LoadingView';
-import { ErrorView } from '../../../../core/components/ErrorView';
-import { EmptyState } from '../../../../core/components/EmptyState';
-import { ROUTES } from '../../../../navigation/routes';
-import { useDashboard } from '../hooks/useDashboard';
-import { StatCard } from '../components/StatCard';
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Card } from "../../../../core/components/Card";
+import { EmptyState } from "../../../../core/components/EmptyState";
+import { ErrorView } from "../../../../core/components/ErrorView";
+import { FAB } from "../../../../core/components/FAB";
+import { LoadingView } from "../../../../core/components/LoadingView";
+import { useTheme } from "../../../../core/theme/ThemeProvider";
+import { ROUTES } from "../../../../navigation/routes";
+import { StatCard } from "../components/StatCard";
+import { useDashboard } from "../hooks/useDashboard";
 
 export function DashboardScreen() {
   const { colors, spacing, typography } = useTheme();
@@ -24,18 +31,51 @@ export function DashboardScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, flexGrow: 1 }}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={refresh}
+            tintColor={colors.primary}
+          />
+        }
       >
         <Text style={[typography.h1, { color: colors.text }]}>Dashboard</Text>
-        <Text style={[typography.body, { color: colors.textMuted, marginTop: spacing.xs }]}>
-          A snapshot of everything on your plate.
+        <Text
+          style={[
+            typography.body,
+            { color: colors.textMuted, marginTop: spacing.xs },
+          ]}
+        >
+          A snapshot of everything on your plated.
         </Text>
 
-        <View style={[styles.statsGrid, { gap: spacing.md, marginTop: spacing.lg }]}>
-          <StatCard icon="layers-outline" label="Total" value={stats.total} accentColor={colors.primary} />
-          <StatCard icon="checkmark-done-outline" label="Completed" value={stats.completed} accentColor={colors.success} />
-          <StatCard icon="time-outline" label="Pending" value={stats.pending} accentColor={colors.warning} />
-          <StatCard icon="today-outline" label="Today" value={stats.today} accentColor={colors.danger} />
+        <View
+          style={[styles.statsGrid, { gap: spacing.md, marginTop: spacing.lg }]}
+        >
+          <StatCard
+            icon="layers-outline"
+            label="Total"
+            value={stats.total}
+            accentColor={colors.primary}
+          />
+          <StatCard
+            icon="checkmark-done-outline"
+            label="Completed"
+            value={stats.completed}
+            accentColor={colors.success}
+          />
+          <StatCard
+            icon="time-outline"
+            label="Pending"
+            value={stats.pending}
+            accentColor={colors.warning}
+          />
+          <StatCard
+            icon="today-outline"
+            label="Today"
+            value={stats.today}
+            accentColor={colors.danger}
+          />
         </View>
 
         {!hasTasks ? (
@@ -52,12 +92,23 @@ export function DashboardScreen() {
           <Card style={{ marginTop: spacing.xl }}>
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.h3, { color: colors.text }]}>Bulk upload</Text>
-                <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
+                <Text style={[typography.h3, { color: colors.text }]}>
+                  Bulk upload
+                </Text>
+                <Text
+                  style={[
+                    typography.caption,
+                    { color: colors.textMuted, marginTop: spacing.xs },
+                  ]}
+                >
                   Import many tasks at once from a CSV file.
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.textMuted}
+              />
             </View>
           </Card>
         </Pressable>
@@ -70,11 +121,11 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
